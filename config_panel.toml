@@ -1,19 +1,20 @@
 version = "1.0"
 
-[registration]
-name.en = "Registration & account recovery"
-services = ["__APP__"]
+[main]
 
-    [registration.disable_registration]
-    ask.en = "Registration policy"
-    type = "select"
-    choices.invite_only = "Invite only (recommended)"
-    choices.true = "Disabled (nobody can create an account)"
-    choices.false = "Open registration"
-    default = "invite_only"
-    help.en = "Controls who can create a Plausible account on this instance. After the first (owner) account exists, invite_only means new users join only by invitation from an existing user."
+    [main.registration]
+    name = "Registration"
 
-    [registration.admin_email]
-    ask.en = "Admin contact email"
-    type = "string"
-    help.en = "Used as sender identity context for Plausible's outgoing mail (password resets, invitations) via the server's local Postfix."
+        [main.registration.disable_registration]
+        ask = "Registration policy"
+        type = "select"
+        choices = ["invite_only", "true", "false"]
+        default = "invite_only"
+        help = "Who can create a Plausible account: invite_only (new users join by invitation), true (registration fully disabled), false (open registration)."
+        bind = ":__INSTALL_DIR__/env DISABLE_REGISTRATION"
+
+        [main.registration.admin_email]
+        ask = "Admin contact email"
+        type = "string"
+        help = "Used for Plausible's outgoing mail (password resets, invitations) via the server's local Postfix."
+        bind = "admin_email"
