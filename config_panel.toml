@@ -11,7 +11,7 @@ version = "1.0"
         choices = ["invite_only", "true", "false"]
         default = "invite_only"
         help = "Who can create a Plausible account: invite_only (new users join by invitation), true (registration fully disabled), false (open registration)."
-        bind = ":__INSTALL_DIR__/env DISABLE_REGISTRATION"
+        bind = "DISABLE_REGISTRATION:__INSTALL_DIR__/env"
 
         [main.registration.admin_email]
         ask = "Admin contact email"
