@@ -94,6 +94,9 @@ ram.runtime = "2G"
     dashboard.url = "re:^__DOMAIN__\\/(?!js\\/|css\\/|images\\/|favicon\\.ico|robots\\.txt|live\\/|api\\/|share\\/|avatar\\/).*$"
     dashboard.protected = true
     dashboard.allowed = ["all_users"]
+    # Regex URLs cannot render a portal tile (YNH warns); the app tile
+    # comes from `main`, which is public and must stay untiled anyway.
+    dashboard.show_tile = false
 
     [resources.ports]
     # Plausible HTTP (nginx -> app); both bound to loopback only.
