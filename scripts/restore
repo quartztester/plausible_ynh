@@ -14,7 +14,6 @@ source /usr/share/yunohost/helpers
 ynh_script_progression "Restoring the app files..."
 
 ynh_restore "$install_dir/app"
-ynh_restore "$install_dir/env"
 ynh_restore "$data_dir"
 ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
 ynh_restore "/etc/systemd/system/$app.service"
@@ -29,6 +28,20 @@ ynh_restore "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 chown -R "$app:$app" "$install_dir"
 chmod 750 "$install_dir"
 chmod -R u=rwX,go-rwx "$install_dir/app"
+
+# Re-render env from the package template with CURRENT settings instead of
+# restoring the archived copy: the database/PG resources are re-provisioned
+# during restore, so db_pwd (and other generated secrets) may differ from
+# the archived ones. Secrets that must survive (SECRET_KEY_BASE,
+# TOTP_VAULT_KEY) are kept in app settings and re-injected via the template.
+secret_key_base=$(ynh_app_setting_get --app=$app --key=secret_key_base)
+totp_vault_key=$(ynh_app_setting_get --app=$app --key=totp_vault_key)
+if [ -z "$secret_key_base" ] || [ -z "$totp_vault_key" ]; then
+    ynh_die "Missing SECRET_KEY_BASE/TOTP_VAULT_KEY in app settings; cannot re-render env"
+fi
+ynh_delete_file_checksum --file="$install_dir/env"
+ynh_config_add --template=env --destination="$install_dir/env"
+chown "$app:$app" "$install_dir/env"
 chmod 600 "$install_dir/env"
 
 #=================================================
@@ -49,8 +62,11 @@ ynh_script_progression "Restoring the ClickHouse events database..."
 ch_password=$(ynh_app_setting_get --app=$app --key=ch_password)
 
 # createdb creates plausible_events_db if missing (no-op when present).
+# NB: cd out of YunoHost's app_tmp_work_dirs first — it is root-owned mode
+# 700 and the BEAM crashes at boot if started with a CWD the app user
+# cannot traverse.
 plausible_ctl() {
-    ynh_exec_as_app bash -c "set -a; source '$install_dir/env'; set +a; '$install_dir/app/bin/plausible' $1"
+    ynh_exec_as_app bash -c "set -a; source '$install_dir/env'; set +a; cd '$data_dir'; '$install_dir/app/bin/plausible' $1"
 }
 plausible_ctl "eval Plausible.Release.createdb"
 
