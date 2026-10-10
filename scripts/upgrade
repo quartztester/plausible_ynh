@@ -29,10 +29,34 @@ ynh_setup_source --dest_dir="$install_dir/app" --full_replace
 
 ynh_script_progression "Re-applying configuration..."
 
+# Re-render env with the SAME secrets as the running install (settings are
+# the source of truth: db_pwd/ch_password/secret_key_base/totp_vault_key).
+# If ch_password were regenerated here, users.d and the running ClickHouse
+# would keep authenticating with the old value while the app used the new
+# one — every event flush would fail with CH 516 auth errors.
+secret_key_base=$(ynh_app_setting_get --app=$app --key=secret_key_base)
+totp_vault_key=$(ynh_app_setting_get --app=$app --key=totp_vault_key)
+ch_password=$(ynh_app_setting_get --app=$app --key=ch_password)
+[ -n "$secret_key_base" ] || ynh_die "Missing secret_key_base in app settings"
+[ -n "$ch_password" ] || ynh_die "Missing ch_password in app settings"
+
 ynh_delete_file_checksum --file="$install_dir/env"
 ynh_config_add --template=env --destination="$install_dir/env"
 chown "$app:$app" "$install_dir/env"
 chmod 600 "$install_dir/env"
+
+# Keep users.d in sync with the settings password (idempotent no-op when
+# unchanged) and restart CH so an already-running server reloads it.
+ynh_config_add --template="clickhouse-users.xml" --destination="/etc/clickhouse-server/users.d/${app}-default-password.xml"
+chown clickhouse:clickhouse "/etc/clickhouse-server/users.d/${app}-default-password.xml"
+chmod 600 "/etc/clickhouse-server/users.d/${app}-default-password.xml"
+ynh_systemctl --service=clickhouse-server --action=restart
+ch_ready=""
+for i in $(seq 1 60); do
+    curl -s -o /dev/null http://127.0.0.1:8123/ping && { ch_ready=1; break; }
+    sleep 2
+done
+[ -n "$ch_ready" ] || ynh_die "ClickHouse HTTP interface did not become ready on 127.0.0.1:8123"
 
 chmod -R o-rwx "$install_dir"
 chmod 755 "$install_dir/app/bin/"* "$install_dir/app/"erts-*/bin/* 2>/dev/null || true

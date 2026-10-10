@@ -11,7 +11,7 @@ source /usr/share/yunohost/helpers
 # DECLARE FILES TO BACK UP
 #=================================================
 
-ynh_script_progression "Declaring files to be backed up..."
+ynh_print_info "Declaring files to be backed up..."
 
 # App release + per-instance state. The release (48 MB) is included so
 # restore works even if the source host is unreachable (e.g. disaster
@@ -33,12 +33,12 @@ ynh_backup "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 # BACK UP DATABASES
 #=================================================
 
-ynh_script_progression "Dumping the PostgreSQL database..."
+ynh_print_info "Dumping the PostgreSQL database..."
 
 mkdir -p ./clickhouse
 ynh_psql_dump_db > db.sql
 
-ynh_script_progression "Dumping the ClickHouse events database..."
+ynh_print_info "Dumping the ClickHouse events database..."
 
 ch_password=$(ynh_app_setting_get --app=$app --key=ch_password)
 
@@ -54,4 +54,4 @@ clickhouse-client --password "$ch_password" --query "
         > "./clickhouse/${table}.native"
 done
 
-ynh_script_progression "Backup of $app prepared"
+ynh_print_info "Backup of $app prepared"

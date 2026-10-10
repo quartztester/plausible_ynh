@@ -23,6 +23,7 @@ SyslogIdentifier=__APP__
 ; under /home/yunohost.app and the app writes sessions/tmp/geodb there.
 NoNewPrivileges=yes
 PrivateTmp=yes
+PrivateDevices=yes
 ProtectSystem=full
 ProtectHome=no
 ProtectKernelTunables=yes
