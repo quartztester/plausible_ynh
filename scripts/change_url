@@ -1,0 +1,45 @@
+#!/bin/bash
+
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# STOP SYSTEMD SERVICE
+#=================================================
+
+ynh_script_progression "Stopping $app's systemd service..."
+
+ynh_systemctl --service="$app" --action=stop
+
+#=================================================
+# UPDATE CONFIG FILES
+#=================================================
+
+ynh_script_progression "Updating Plausible configuration for the new domain..."
+
+# BASE_URL must follow the public URL; re-render env from template with
+# current settings (secrets are re-read from app settings).
+ynh_delete_file_checksum --file="$install_dir/env"
+ynh_config_add --template=env --destination="$install_dir/env"
+chown "$app:$app" "$install_dir/env"
+chmod 600 "$install_dir/env"
+
+#=================================================
+# UPDATE NGINX CONF
+#=================================================
+
+ynh_config_change_url_nginx
+
+#=================================================
+# RESTART SERVICE
+#=================================================
+
+ynh_script_progression "Restarting $app..."
+
+ynh_systemctl --service="$app" --action=start
+
+ynh_script_progression "Change of URL completed for $app"

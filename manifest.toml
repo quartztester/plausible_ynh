@@ -1,0 +1,112 @@
+#:schema https://raw.githubusercontent.com/YunoHost/apps/master/schemas/manifest.v2.schema.json
+
+packaging_format = 2
+
+id = "plausible"
+name = "Plausible Analytics"
+description.en = "Simple, privacy-friendly and lightweight web analytics (self-hosted Community Edition)"
+
+version = "3.2.1~ynh1"
+
+maintainers = ["quartztester"]
+
+[upstream]
+license = "AGPL-3.0-only"
+website = "https://plausible.io/"
+code = "https://github.com/plausible/analytics"
+admindoc = "https://github.com/plausible/community-edition/wiki"
+userdoc = "https://plausible.io/docs"
+
+[integration]
+yunohost = ">= 12.0"
+helpers_version = "2.1"
+# The app release bundles its own ERTS built on/for Debian 12 amd64.
+# Rebuild the release tarball for other arches/Debian releases before
+# listing them here.
+architectures = ["amd64"]
+multi_instance = true
+ldap = "not_relevant"
+sso = "not_relevant"
+disk = "3G"
+ram.build = "4G"
+ram.runtime = "2G"
+
+[install]
+    [install.domain]
+    type = "domain"
+
+    [install.path]
+    type = "path"
+    default = "/"
+
+    [install.init_main_permission]
+    type = "group"
+    default = "visitors"
+    help.en = "Must stay 'visitors': measured websites send events and load the tracker script anonymously. The stats dashboard itself is protected by Plausible's own login."
+
+    [install.admin]
+    type = "user"
+    help.en = "YunoHost user whose email will receive Plausible's password reset emails and the first-launch registration."
+
+    [install.admin_email]
+    ask.en = "Admin contact email (Plausible account email / password resets)"
+    help.en = "Address used for Plausible's outgoing mail and where the initial registration link is sent. Defaults to the chosen YunoHost admin user's email."
+    type = "string"
+    optional = true
+
+    [install.disable_registration]
+    ask.en = "Registration policy"
+    help.en = "invite_only (CE default): new users can register by invite from an existing user. true: no new users. false: open registration."
+    type = "select"
+    choices.invite_only = "invite_only (recommended)"
+    choices.true = "true (no new users)"
+    choices.false = "false (open registration)"
+    default = "invite_only"
+
+[resources]
+    [resources.system_user]
+    # Elixir release runs as a normal service user; ClickHouse keeps its own
+    # 'clickhouse' user from the deb.
+
+    [resources.install_dir]
+    owner = "__APP__:rwx"
+    group = "__APP__:rx"
+
+    [resources.data_dir]
+    subdirs = ["geodb", "sessions", "tmp"]
+    owner = "__APP__:rwx"
+    group = "__APP__:rwx"
+
+    [resources.permissions]
+    main.url = "/"
+
+    [resources.ports]
+    # Plausible HTTP (nginx -> app); both bound to loopback only.
+    main.default = 8000
+
+    [resources.apt]
+    # PostgreSQL from Debian; ClickHouse 24.12 from the official upstream
+    # repo (added pinned by the extras mechanism, and the version pin in
+    # scripts/install keeps it exactly 24.12.6.70 like Plausible CE's own
+    # compose stack). The repo is removed after install so routine apt
+    # upgrades never move ClickHouse unexpectedly.
+    packages = ["postgresql", "postgresql-contrib", "brotli"]
+    extras.clickhouse.repo = "deb https://packages.clickhouse.com/deb stable main"
+    # ClickHouse's old archive.key URL is dead (404); the current signing
+    # key (8919F6BD2B48D754) is mirrored on this package's file host.
+    extras.clickhouse.key = "https://mirror.invalid/clickhouse-key.asc"
+    extras.clickhouse.packages = ["clickhouse-server=24.12.6.70", "clickhouse-client=24.12.6.70", "clickhouse-common-static=24.12.6.70"]
+
+    [resources.database]
+    type = "postgresql"
+
+    [resources.sources.main]
+    # Native Elixir/OTP release of plausible/analytics CE v3.2.1 built from
+    # the v3.2.1 tag (MIX_ENV=ce) on Debian 12 bookworm amd64 with
+    # Erlang/OTP 27.3.4.6 + Elixir 1.19.4 + Node 22. Bundles its own ERTS,
+    # so no Erlang packages are needed at runtime.
+    # NOTE for maintainers: rebuild for each upstream tag (see doc/ADMIN.md);
+    # update url + sha256 + version together.
+    in_subdir = true
+    amd64.url = "https://mirror.invalid/plausible-3.2.1-x86_64-linux-gnu-bookworm.tar.gz"
+    amd64.sha256 = "47b092fc722e2c128866b2d90b31ce3d03e8cda777fbee9eb21dc110ba020d6a"
