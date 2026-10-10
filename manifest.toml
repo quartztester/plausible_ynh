@@ -92,9 +92,10 @@ ram.runtime = "2G"
     # upgrades never move ClickHouse unexpectedly.
     packages = ["postgresql", "postgresql-contrib", "brotli"]
     extras.clickhouse.repo = "deb https://packages.clickhouse.com/deb stable main"
-    # ClickHouse's old archive.key URL is dead (404); the current signing
-    # key (8919F6BD2B48D754) is mirrored on this package's file host.
-    extras.clickhouse.key = "https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/clickhouse-key.asc"
+    # ClickHouse's old archive.key URL is dead (404). The full current
+    # signing key (8919F6BD2B48D754 incl. subkeys) is mirrored in this
+    # package's GitHub release assets.
+    extras.clickhouse.key = "https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/clickhouse-key-v2.asc"
     extras.clickhouse.packages = ["clickhouse-server=24.12.6.70", "clickhouse-client=24.12.6.70", "clickhouse-common-static=24.12.6.70"]
 
     [resources.database]

@@ -22,10 +22,13 @@ ynh_restore "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
 ynh_restore "/etc/clickhouse-server/config.d/${app}-server.xml"
 ynh_restore "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 
-# Exec bits and ownership can be lost through the archive; reapply.
-chmod -R o-rwx "$install_dir"
-chmod 755 "$install_dir/app/bin/"* "$install_dir/app/"erts-*/bin/* 2>/dev/null || true
-chown -R "$app:$app" "$install_dir" "$data_dir"
+# ynh_restore's default-permission pass treats any directory that is not
+# exactly $install_dir or $data_dir as a system file (root:root, mode 400).
+# The release tree under $install_dir/app must belong to the app user and
+# stay traversable, with exec bits kept for the bundled ERTS binaries.
+chown -R "$app:$app" "$install_dir"
+chmod 750 "$install_dir"
+chmod -R u=rwX,go-rwx "$install_dir/app"
 chmod 600 "$install_dir/env"
 
 #=================================================
