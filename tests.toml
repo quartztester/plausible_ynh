@@ -1,0 +1,13 @@
+#:schema https://raw.githubusercontent.com/YunoHost/apps/master/schemas/tests.v1.schema.json
+
+test_format = 1.0
+
+[default]
+
+    args.domain = "domain.tld"
+    args.path = "/"
+    args.admin = "john"
+
+    # Only root installs are supported (the app uses absolute URLs), so the
+    # standard sub_dir scenario is expected to fail at the install script's
+    # path check on purpose.
