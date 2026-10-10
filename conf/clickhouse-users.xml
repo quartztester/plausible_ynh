@@ -1,0 +1,7 @@
+<clickhouse>
+    <users>
+        <default>
+            <password>__CH_PASSWORD__</password>
+        </default>
+    </users>
+</clickhouse>

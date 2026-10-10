@@ -1,0 +1,57 @@
+#!/bin/bash
+
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# STOP SYSTEMD SERVICE
+#=================================================
+
+ynh_script_progression "Stopping $app's systemd service..."
+
+ynh_systemctl --service="$app" --action=stop
+
+#=================================================
+# ENSURE DOWNWARD COMPATIBILITY
+#=================================================
+
+# (settings format is stable since first release)
+
+#=================================================
+# REMOVE APP SOURCE AND BUILT ARTIFACTS
+#=================================================
+
+ynh_script_progression "Removing $app files..."
+
+ynh_safe_rm "$install_dir"
+
+#=================================================
+# REMOVE SYSTEM CONFIGURATIONS
+#=================================================
+
+ynh_script_progression "Removing system configurations..."
+
+# Drop our ClickHouse drop-ins (config stays for other potential users).
+ynh_safe_rm "/etc/clickhouse-server/config.d/${app}-server.xml"
+ynh_safe_rm "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
+ynh_safe_rm "/etc/clickhouse-server/users.d/${app}-default-password.xml"
+
+yunohost service remove "$app" || true
+
+ynh_config_remove_systemd
+ynh_config_remove_nginx
+
+# Leave ClickHouse packages + data in place: another app may use them, and
+# analytics data is precious. Admin can purge manually:
+#   apt purge clickhouse-server clickhouse-client clickhouse-common-static
+#   rm -rf /var/lib/clickhouse
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+
+ynh_script_progression "Removal of $app completed"

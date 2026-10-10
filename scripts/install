@@ -1,0 +1,184 @@
+#!/bin/bash
+
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# INITIALIZE SETTINGS
+#=================================================
+
+# Plausible needs a root install (tracker script URL, live dashboard and
+# absolute redirects assume the host root).
+if [ "${path:-/}" != "/" ]; then
+    ynh_die "Plausible must be installed at the root of a domain (path=/): the app serves its tracker script and dashboard from absolute paths."
+fi
+
+# Resolve admin email: explicit answer wins, else the chosen YunoHost user's mail.
+if [ -z "${admin_email:-}" ] || [ "${admin_email:-}" = "null" ]; then
+    admin_email=$(ynh_user_get_info --username="$admin" --key=mail)
+fi
+ynh_app_setting_set --key=admin_email --value="$admin_email"
+ynh_app_setting_set --key=disable_registration --value="${disable_registration:-invite_only}"
+
+#=================================================
+# CREATE A POSTGRESQL DATABASE
+#=================================================
+
+ynh_script_progression "Configuring the PostgreSQL database..."
+
+# citext is required by Plausible's first migration (case-insensitive emails).
+ynh_psql_db_shell "$db_name" <<< "CREATE EXTENSION IF NOT EXISTS citext;"
+
+#=================================================
+# DOWNLOAD, CHECK AND UNPACK SOURCE
+#=================================================
+
+ynh_script_progression "Setting up source files (native Elixir release)..."
+
+ynh_setup_source --dest_dir="$install_dir/app"
+
+# The release bundles its own ERTS; make sure exec bits survived the trip.
+chmod -R o-rwx "$install_dir"
+chmod 755 "$install_dir/app/bin/"* "$install_dir/app/"erts-*/bin/* 2>/dev/null || true
+chown -R "$app:$app" "$install_dir/app"
+chown "$app:www-data" "$install_dir"
+
+#=================================================
+# SET UP CLICKHOUSE (SECURE BEFORE FIRST START)
+#=================================================
+
+ynh_script_progression "Hardening ClickHouse before its first start..."
+
+# Random password for CH 'default' user, written into users.d BEFORE the
+# server ever starts. The postinst never starts the service, so the
+# shipped empty-password default never becomes reachable.
+ch_password=$(ynh_string_random --length=48)
+ynh_app_setting_set --key=ch_password --value="$ch_password"
+
+ynh_config_add --template="clickhouse-users.xml" --destination="/etc/clickhouse-server/users.d/${app}-default-password.xml"
+chown clickhouse:clickhouse "/etc/clickhouse-server/users.d/${app}-default-password.xml"
+chmod 600 "/etc/clickhouse-server/users.d/${app}-default-password.xml"
+
+# Low-resources tuning shipped by Plausible's own CE compose stack for
+# <16GB RAM servers: fewer threads, smaller blocks, less logging.
+ynh_config_add --template="clickhouse-low-resources.xml" --destination="/etc/clickhouse-server/config.d/${app}-low-resources.xml"
+chown clickhouse:clickhouse "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
+
+# Loopback-only listen + lean logs drop-in.
+ynh_config_add --template="clickhouse-server-conf.xml" --destination="/etc/clickhouse-server/config.d/${app}-server.xml"
+chown clickhouse:clickhouse "/etc/clickhouse-server/config.d/${app}-server.xml"
+
+#=================================================
+# START CLICKHOUSE AND WAIT FOR IT
+#=================================================
+
+ynh_script_progression "Starting ClickHouse..."
+
+# Type=notify: systemctl start itself blocks until CH is ready to accept
+# queries (the "Ready for connections" line only exists in CH's own logs,
+# not the journal, so no --wait_until here). /ping probe follows below.
+ynh_systemctl --service=clickhouse-server --action=start
+
+# Wait for the HTTP interface (8123) to answer /ping.
+ch_ready=""
+for i in $(seq 1 60); do
+    if curl -s -o /dev/null http://127.0.0.1:8123/ping; then ch_ready=1; break; fi
+    sleep 2
+done
+[ -n "$ch_ready" ] || ynh_die "ClickHouse HTTP interface did not become ready on 127.0.0.1:8123"
+
+#=================================================
+# BUILD THE ENV FILE
+#=================================================
+
+# Shell vars consumed by the env template (ynh_config_add reads them).
+secret_key_base=$(ynh_string_random --length=64)
+# TOTP vault key must be base64 of EXACTLY 32 bytes (runtime.exs checks).
+totp_vault_key=$(openssl rand -base64 32)
+ynh_app_setting_set --key=secret_key_base --value="$secret_key_base"
+ynh_app_setting_set --key=totp_vault_key --value="$totp_vault_key"
+
+ynh_script_progression "Configuring Plausible..."
+
+ynh_config_add --template=env --destination="$install_dir/env"
+chown "$app:$app" "$install_dir/env"
+chmod 600 "$install_dir/env"
+
+#=================================================
+# SETUP THE SYSTEMD SERVICE
+#=================================================
+
+ynh_script_progression "Configuring the systemd service..."
+
+ynh_config_add_systemd
+
+#=================================================
+# CREATE DATABASES AND MIGRATE
+#=================================================
+
+ynh_script_progression "Creating databases and running migrations (takes a few minutes)..."
+
+# Source the env file in a subshell as the app user. Values are
+# alphanumeric/URL-safe (generated by this package), so word-splitting
+# through env is safe.
+plausible_ctl() {
+    ynh_exec_as_app bash -c "set -a; source '$install_dir/env'; set +a; '$install_dir/app/bin/plausible' $1"
+}
+
+# Plausible.Release.createdb creates the PG and ClickHouse databases if
+# missing; interweave_migrate runs PG+CH migrations in dependency order.
+plausible_ctl "eval Plausible.Release.createdb"
+plausible_ctl "eval Plausible.Release.interweave_migrate"
+
+#=================================================
+# INTEGRATE SERVICE IN YUNOHOST
+#=================================================
+
+ynh_script_progression "Integrating service in YunoHost..."
+
+# ClickHouse is installed and configured by this package; track it in the
+# service dashboard too (no-op if already registered).
+if ! ynh_hide_warnings yunohost service status clickhouse-server >/dev/null 2>&1; then
+    yunohost service add clickhouse-server --description="Column-oriented database for Plausible events"
+fi
+
+yunohost service add "$app" --description="Plausible Analytics dashboard, API and event ingestion"
+
+#=================================================
+# START THE APP
+#=================================================
+
+ynh_script_progression "Starting Plausible..."
+
+ynh_systemctl --service="$app" --action=start
+
+# Wait for the app to serve the public tracker script (stable 200 route,
+# no auth, no first-launch redirect). Pre-first-launch /health/* redirects
+# to /register via FirstLaunchPlug, so it can't be used as a probe.
+plausible_ready=""
+for i in $(seq 1 90); do
+    if curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$port/js/script.js" | grep -q "^200$"; then plausible_ready=1; break; fi
+    sleep 2
+done
+if [ -z "$plausible_ready" ]; then
+    journalctl --quiet --no-pager --lines=50 --unit="$app" >&2 || true
+    ynh_die "Plausible did not start serving on http://127.0.0.1:$port"
+fi
+
+#=================================================
+# SETUP SSOWAT / NGINX
+#=================================================
+
+ynh_script_progression "Configuring nginx web server..."
+
+ynh_config_add_nginx
+
+#=================================================
+# END OF SCRIPT
+#=================================================
+
+ynh_script_progression "Installation of $app completed"
