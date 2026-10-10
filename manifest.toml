@@ -6,7 +6,7 @@ id = "plausible"
 name = "Plausible Analytics"
 description.en = "Simple, privacy-friendly and lightweight web analytics (self-hosted Community Edition)"
 
-version = "3.2.1~ynh1"
+version = "3.2.1~ynh2"
 
 maintainers = ["quartztester"]
 
@@ -78,7 +78,22 @@ ram.runtime = "2G"
     group = "__APP__:rwx"
 
     [resources.permissions]
+    # Public surface: tracker script, event ingestion, health probes and
+    # shared/public stats links. `main` covers these anonymously so
+    # browsers from measured websites are never sent to the portal.
     main.url = "/"
+    main.auth_header = false
+
+    # Everything else on the domain is the private dashboard/API. Protected
+    # by the YunoHost SSO; on authenticated requests SSOwat injects
+    # YNH_USER / YNH_USER_EMAIL / YNH_USER_FULLNAME headers (JWT-verified
+    # from the portal cookie, client-forged copies stripped) which the
+    # app's YunohostSSOPlug uses to auto-login the matching Plausible
+    # account (matched by email). Anonymous visitors get redirected to
+    # the portal instead of Plausible's own /login.
+    dashboard.url = "re:^__DOMAIN__\\/(?!js\\/|css\\/|images\\/|favicon\\.ico|robots\\.txt|live\\/|api\\/|share\\/|avatar\\/).*$"
+    dashboard.protected = true
+    dashboard.allowed = ["all_users"]
 
     [resources.ports]
     # Plausible HTTP (nginx -> app); both bound to loopback only.
@@ -110,4 +125,4 @@ ram.runtime = "2G"
     # update url + sha256 + version together.
     in_subdir = true
     amd64.url = "https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/plausible-3.2.1-x86_64-linux-gnu-bookworm.tar.gz"
-    amd64.sha256 = "47b092fc722e2c128866b2d90b31ce3d03e8cda777fbee9eb21dc110ba020d6a"
+    amd64.sha256 = "86e4eae831f3465383e048203a7ecb8633400b486d6fe8dcbb68481daa67bd46"

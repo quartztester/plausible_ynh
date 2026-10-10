@@ -22,6 +22,7 @@ if [ -z "${admin_email:-}" ] || [ "${admin_email:-}" = "null" ]; then
     admin_email=$(ynh_user_get_info --username="$admin" --key=mail)
 fi
 ynh_app_setting_set --key=admin_email --value="$admin_email"
+ynh_app_setting_set --key=admin --value="$admin"
 ynh_app_setting_set --key=disable_registration --value="${disable_registration:-invite_only}"
 
 #=================================================
@@ -136,6 +137,21 @@ plausible_ctl() {
 # missing; interweave_migrate runs PG+CH migrations in dependency order.
 plausible_ctl "eval Plausible.Release.createdb"
 plausible_ctl "eval Plausible.Release.interweave_migrate"
+
+#=================================================
+# PRE-PROVISION THE SSO ADMIN ACCOUNT
+#=================================================
+
+ynh_script_progression "Provisioning the Plausible account for the YunoHost user..."
+
+# Create the first user from the YunoHost SSO identity (idempotent):
+# user + personal team (owner), team marked setup_complete so the first
+# SSO login lands straight on the dashboard. Plausible keys accounts by
+# email; the YunoHost login itself is handled by YunohostSSOPlug via the
+# SSOwat identity headers (see conf/nginx.conf).
+ynh_exec_as_app bash -c "set -a; source '$install_dir/env'; set +a; cd '$data_dir'; \
+    '$install_dir/app/bin/plausible' eval 'Plausible.Release.YunohostSetup.provision_user(\"$admin_email\", \"$(ynh_user_get_info --username=\"$admin\" --key=fullname)\")'" \
+    || ynh_die "Failed to provision the Plausible account for $admin_email"
 
 #=================================================
 # INTEGRATE SERVICE IN YUNOHOST
