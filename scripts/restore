@@ -21,6 +21,18 @@ ynh_restore "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
 ynh_restore "/etc/clickhouse-server/config.d/${app}-server.xml"
 ynh_restore "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 
+# ynh_restore's default-permission pass marks /etc files root:root mode 400;
+# ClickHouse runs as the 'clickhouse' user and must be able to read its
+# config drop-ins (its daemon dies with 'Access to file denied' otherwise).
+chown clickhouse:clickhouse \
+    "/etc/clickhouse-server/config.d/${app}-low-resources.xml" \
+    "/etc/clickhouse-server/config.d/${app}-server.xml" \
+    "/etc/clickhouse-server/users.d/${app}-default-password.xml"
+chmod 640 \
+    "/etc/clickhouse-server/config.d/${app}-low-resources.xml" \
+    "/etc/clickhouse-server/config.d/${app}-server.xml"
+chmod 600 "/etc/clickhouse-server/users.d/${app}-default-password.xml"
+
 # ynh_restore's default-permission pass treats any directory that is not
 # exactly $install_dir or $data_dir as a system file (root:root, mode 400).
 # The release tree under $install_dir/app must belong to the app user and
