@@ -79,9 +79,10 @@ chown clickhouse:clickhouse "/etc/clickhouse-server/config.d/${app}-server.xml"
 ynh_script_progression "Starting ClickHouse..."
 
 # Type=notify: systemctl start itself blocks until CH is ready to accept
-# queries (the "Ready for connections" line only exists in CH's own logs,
-# not the journal, so no --wait_until here). /ping probe follows below.
-ynh_systemctl --service=clickhouse-server --action=start
+# queries. restart (not start) so a CH instance already running from a
+# previous install cycle reloads the freshly written users.d password —
+# otherwise the server keeps authenticating with the old in-memory value.
+ynh_systemctl --service=clickhouse-server --action=restart
 
 # Wait for the HTTP interface (8123) to answer /ping.
 ch_ready=""

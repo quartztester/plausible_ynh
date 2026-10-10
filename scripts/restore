@@ -61,6 +61,11 @@ ynh_script_progression "Restoring the ClickHouse events database..."
 
 ch_password=$(ynh_app_setting_get --app=$app --key=ch_password)
 
+# Reload ClickHouse BEFORE any plausible_ctl: the restored users.d XML
+# carries this instance's password; a CH instance that kept running
+# through remove/install cycles still has the previous password in memory.
+ynh_systemctl --service=clickhouse-server --action=restart
+
 # createdb creates plausible_events_db if missing (no-op when present).
 # NB: cd out of YunoHost's app_tmp_work_dirs first — it is root-owned mode
 # 700 and the BEAM crashes at boot if started with a CWD the app user
