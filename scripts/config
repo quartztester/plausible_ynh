@@ -1,0 +1,36 @@
+#!/bin/bash
+
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# APPLY CHANGES
+#=================================================
+
+# The panel edits app settings (disable_registration, admin_email); this
+# script re-renders the env file from the template and restarts.
+
+ynh_script_progression "Re-applying Plausible configuration..."
+
+secret_key_base=$(ynh_app_setting_get --app=$app --key=secret_key_base)
+totp_vault_key=$(ynh_app_setting_get --app=$app --key=totp_vault_key)
+
+ynh_delete_file_checksum --file="$install_dir/env"
+ynh_config_add --template=env --destination="$install_dir/env"
+chown "$app:$app" "$install_dir/env"
+chmod 600 "$install_dir/env"
+
+ynh_systemctl --service="$app" --action=restart
+
+plausible_ready=""
+for i in $(seq 1 90); do
+    if curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$port/js/script.js" | grep -q "^200$"; then plausible_ready=1; break; fi
+    sleep 2
+done
+[ -n "$plausible_ready" ] || ynh_die "Plausible did not come back after config change"
+
+ynh_script_progression "Configuration of $app updated"
