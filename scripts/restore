@@ -22,6 +22,10 @@ ynh_restore "/etc/clickhouse-server/config.d/${app}-server.xml"
 ynh_restore "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 
 # ynh_restore's default-permission pass marks /etc files root:root mode 400;
+# nginx workers run as www-data and can't read the vhost conf otherwise.
+chown root:www-data "/etc/nginx/conf.d/$domain.d/$app.conf"
+chmod 640 "/etc/nginx/conf.d/$domain.d/$app.conf"
+
 # ClickHouse runs as the 'clickhouse' user and must be able to read its
 # config drop-ins (its daemon dies with 'Access to file denied' otherwise).
 chown clickhouse:clickhouse \
