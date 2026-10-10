@@ -122,6 +122,15 @@ chown -R "$app:$app" "$install_dir" "$data_dir"
 ynh_systemctl --service=clickhouse-server --action=restart
 ynh_systemctl --service="$app" --action=restart
 
+# Wait for the BEAM to finish booting (cache warmers take ~20s after
+# systemd reports the service active) before serving traffic.
+plausible_ready=""
+for i in $(seq 1 90); do
+    if curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$port/js/script.js" | grep -q "^200$"; then plausible_ready=1; break; fi
+    sleep 2
+done
+[ -n "$plausible_ready" ] || ynh_die "Plausible did not come back after restore"
+
 # Reload nginx so the restored vhost conf is actually served (restoring the
 # conf file alone does not trigger a reload).
 ynh_systemctl --service=nginx --action=reload
