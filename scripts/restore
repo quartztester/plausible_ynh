@@ -93,6 +93,9 @@ plausible_ctl "eval Plausible.Release.interweave_migrate"
 
 for f in ./clickhouse/*.native; do
     [ -e "$f" ] || continue
+    # Skip empty dumps: ClickHouse rejects INSERT of zero rows
+    # (NO_DATA_TO_INSERT), and empty tables need no restore anyway.
+    [ -s "$f" ] || continue
     table=$(basename "$f" .native)
     clickhouse-client --password "$ch_password" \
         --query "INSERT INTO plausible_events_db.\"$table\" FORMAT Native" < "$f"
