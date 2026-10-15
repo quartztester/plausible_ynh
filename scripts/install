@@ -120,9 +120,8 @@ ynh_config_add_systemd
 
 ynh_script_progression "Creating databases and running migrations (takes a few minutes)..."
 
-# Source the env file in a subshell as the app user. Values are
-# Plausible.Release.createdb creates the PG and ClickHouse databases if
-# missing; interweave_migrate runs PG+CH migrations in dependency order.
+# createdb creates the PG and ClickHouse databases if missing;
+# interweave_migrate runs PG+CH migrations in dependency order.
 plausible_ctl "eval Plausible.Release.createdb"
 plausible_ctl "eval Plausible.Release.interweave_migrate"
 
