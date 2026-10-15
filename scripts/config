@@ -35,12 +35,8 @@ ynh_app_config_apply() {
 
     ynh_systemctl --service="$app" --action=restart
 
-    plausible_ready=""
-    for i in $(seq 1 90); do
-        if curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$port/js/script.js" | grep -q "^200$"; then plausible_ready=1; break; fi
-        sleep 2
-    done
-    [ -n "$plausible_ready" ] || ynh_die "Plausible did not come back after config change"
+    wait_for_url "http://127.0.0.1:$port/js/script.js" 200 90 \
+        || ynh_die "Plausible did not come back after config change"
 }
 
 ynh_app_config_run $1

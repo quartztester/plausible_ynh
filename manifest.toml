@@ -6,7 +6,7 @@ id = "plausible"
 name = "Plausible Analytics"
 description.en = "Simple, privacy-friendly and lightweight web analytics (self-hosted Community Edition)"
 
-version = "3.2.1~ynh3"
+version = "3.2.1~ynh4"
 
 maintainers = ["quartztester"]
 
