@@ -34,10 +34,7 @@ Pull request are welcome and should target the [`testing` branch](https://github
 
 The `testing` branch can be tested using:
 ```
-<h1>
-  <img src="logos/plausible.png" width="48" alt="plausible_ynh logo">
-  fresh install:
-</h1>
+# fresh install:
 sudo yunohost app install https://github.com/YunoHost-Apps/plausible_ynh/tree/testing
 
 # upgrade an existing install:
