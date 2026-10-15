@@ -1,4 +1,7 @@
-# Plausible Analytics pour YunoHost
+<h1>
+  <img src="logos/plausible.png" width="48" alt="plausible_ynh logo">
+  Plausible Analytics pour YunoHost
+</h1>
 
 Plausible Analytics CE est une analytique web légère, open source et respectueuse de la vie privée (pas de cookies, pas de collecte de données personnelles). Ce paquet l'exécute en natif (Elixir/OTP), sans Docker.
 
@@ -15,3 +18,9 @@ Plausible Analytics CE est une analytique web légère, open source et respectue
 
 - Projet amont : <https://github.com/plausible/analytics>
 - Paquet YunoHost : <https://github.com/quartztester/plausible_ynh>
+
+## Screenshots
+
+![plausible dashboard](./doc/screenshots/dashboard.png)
+![plausible stats](./doc/screenshots/stats.png)
+

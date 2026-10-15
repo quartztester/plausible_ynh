@@ -4,7 +4,7 @@ It shall NOT be edited by hand.
 -->
 
 <h1>
-  <img src="https://raw.githubusercontent.com/YunoHost/apps/main/logos/plausible.png" width="32px" alt="Logo of Plausible Analytics">
+  <img src="logos/plausible.png" width="32px" alt="Logo of Plausible Analytics">
   Plausible Analytics, packaged for YunoHost
 </h1>
 
@@ -20,8 +20,9 @@ Simple, privacy-friendly and lightweight web analytics (self-hosted Community Ed
 
 
 ## Screenshots
-![Screenshot of Plausible Analytics](./doc/screenshots/sites-list.png)
-![Screenshot of Plausible Analytics](./doc/screenshots/stats-dashboard.png)
+
+![plausible dashboard](./doc/screenshots/dashboard.png)
+![plausible stats](./doc/screenshots/stats.png)
 
 ## 📦 Developer info
 
@@ -33,7 +34,10 @@ Pull request are welcome and should target the [`testing` branch](https://github
 
 The `testing` branch can be tested using:
 ```
-# fresh install:
+<h1>
+  <img src="logos/plausible.png" width="48" alt="plausible_ynh logo">
+  fresh install:
+</h1>
 sudo yunohost app install https://github.com/YunoHost-Apps/plausible_ynh/tree/testing
 
 # upgrade an existing install:
