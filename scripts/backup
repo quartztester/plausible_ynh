@@ -54,4 +54,8 @@ clickhouse-client --password "$ch_password" --query "
         > "./clickhouse/${table}.native"
 done
 
+#=================================================
+# END OF SCRIPT
+#=================================================
+
 ynh_print_info "Backup of $app prepared"

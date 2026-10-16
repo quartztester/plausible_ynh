@@ -128,4 +128,8 @@ wait_for_url "http://127.0.0.1:$port/js/script.js" 200 90 \
 # conf file alone does not trigger a reload).
 ynh_systemctl --service=nginx --action=reload
 
+#=================================================
+# END OF SCRIPT
+#=================================================
+
 ynh_script_progression "Restore of $app completed"

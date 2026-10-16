@@ -1,12 +1,16 @@
 #!/bin/bash
 
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
+
 source _common.sh
 source /usr/share/yunohost/helpers
 
 ynh_abort_if_errors
 
 #=================================================
-# SHOW CURRENT VALUES (config panel "get")
+# SHOW CURRENT VALUES (CONFIG PANEL "GET")
 #=================================================
 
 # Default behavior: read the bound values (env file for
@@ -14,7 +18,7 @@ ynh_abort_if_errors
 # customize, so rely on the framework defaults.
 
 #=================================================
-# APPLY CHANGES (config panel "set")
+# APPLY CHANGES (CONFIG PANEL "SET")
 #=================================================
 
 ynh_app_config_apply() {

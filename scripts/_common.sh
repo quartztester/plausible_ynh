@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#=================================================
+# COMMON VARIABLES AND CUSTOM HELPERS
+#=================================================
+
 # Keep shared functions/variables here.
 
 # Start the Plausible release binary with the app's env file loaded.
