@@ -86,12 +86,39 @@ plausible_ctl "eval Plausible.Release.interweave_migrate"
 # Re-run the SSO account provisioning (idempotent): covers cases where
 # the admin_email setting changed, or an earlier version was installed
 # before this provisioning existed.
+#
+# NOTE: this MUST run via `rpc`, not `eval`: `eval` boots a clean node
+# where Plausible.Repo is not started, so provision_user raised
+# "(RuntimeError) could not lookup Ecto repo" there and the step was a
+# silent no-op since the first release. `rpc` executes on the live node.
 ynh_script_progression "Ensuring the SSO admin account exists..."
 admin_email=$(ynh_app_setting_get --app=$app --key=admin_email)
 admin=$(ynh_app_setting_get --app=$app --key=admin)
+
+# Self-heal: Plausible keys accounts by email and YunohostSSOPlug matches
+# the SSOwat-injected YNH_USER_EMAIL (the account's LDAP mail). If the
+# admin's YunoHost email was changed after install (yunohost user update),
+# the stored admin_email — and the Plausible account itself — go stale and
+# SSO auto-login silently drops to the password form (whose password is
+# randomly generated and unusable). Realign both.
+if [ -n "$admin" ]; then
+    current_email=$(yunohost user info "$admin" --output-as json 2>/dev/null \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mail",""))' 2>/dev/null || echo "")
+    if [ -n "$current_email" ] && [ "$current_email" != "$admin_email" ]; then
+        ynh_print_warn --message="Admin email changed ($admin_email -> $current_email); realigning the Plausible account..."
+        sudo -u postgres psql plausible -v ON_ERROR_STOP=1 \
+            -c "UPDATE users SET email='$current_email', updated_at=now() WHERE email='$admin_email';" \
+            || ynh_print_warn --message="Could not rename the Plausible admin account (non-fatal)"
+        admin_email="$current_email"
+        ynh_app_setting_set --app=$app --key=admin_email --value="$admin_email"
+    fi
+fi
+
 if [ -n "$admin_email" ]; then
+    admin_fullname=$(ynh_user_get_info --username="$admin" --key=fullname 2>/dev/null || echo "")
+    provision_expr="Plausible.Release.YunohostSetup.provision_user(\"$admin_email\", \"$admin_fullname\")"
     ynh_exec_as_app bash -c "set -a; source '$install_dir/env'; set +a; cd '$data_dir'; \
-        '$install_dir/app/bin/plausible' eval 'Plausible.Release.YunohostSetup.provision_user(\"$admin_email\", \"$(ynh_user_get_info --username=\"$admin\" --key=fullname 2>/dev/null || echo \"\")\")'" \
+        '$install_dir/app/bin/plausible' rpc '$provision_expr'" \
         || ynh_print_warn --message="Could not re-provision the SSO account (non-fatal)"
 fi
 

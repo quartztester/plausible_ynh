@@ -125,20 +125,9 @@ ynh_script_progression "Creating databases and running migrations (takes a few m
 plausible_ctl "eval Plausible.Release.createdb"
 plausible_ctl "eval Plausible.Release.interweave_migrate"
 
-#=================================================
-# PRE-PROVISION THE SSO ADMIN ACCOUNT
-#=================================================
-
-ynh_script_progression "Provisioning the Plausible account for the YunoHost user..."
-
-# Create the first user from the YunoHost SSO identity (idempotent):
-# user + personal team (owner), team marked setup_complete so the first
-# SSO login lands straight on the dashboard. Plausible keys accounts by
-# email; the YunoHost login itself is handled by YunohostSSOPlug via the
-# SSOwat identity headers (see conf/nginx.conf).
-ynh_exec_as_app bash -c "set -a; source '$install_dir/env'; set +a; cd '$data_dir'; \
-    '$install_dir/app/bin/plausible' eval 'Plausible.Release.YunohostSetup.provision_user(\"$admin_email\", \"$(ynh_user_get_info --username=\"$admin\" --key=fullname)\")'" \
-    || ynh_die "Failed to provision the Plausible account for $admin_email"
+# NOTE: SSO account provisioning runs AFTER the service is up (below),
+# via `rpc` — `eval` boots a clean node where Plausible.Repo is not
+# started, so provision_user can never run from there.
 
 #=================================================
 # INTEGRATE SERVICE IN YUNOHOST
@@ -169,6 +158,26 @@ if ! wait_for_url "http://127.0.0.1:$port/js/script.js" 200 90; then
     journalctl --quiet --no-pager --lines=50 --unit="$app" >&2 || true
     ynh_die "Plausible did not start serving on http://127.0.0.1:$port"
 fi
+
+#=================================================
+# PRE-PROVISION THE SSO ADMIN ACCOUNT
+#=================================================
+
+# MUST run via `rpc` on the live node (the service is up now): `eval`
+# boots a clean node where Plausible.Repo is not started, so
+# provision_user always raised there and silently did nothing.
+
+# Create the first user from the YunoHost SSO identity (idempotent):
+# user + personal team (owner), team marked setup_complete so the first
+# SSO login lands straight on the dashboard. Plausible keys accounts by
+# email; the YunoHost login itself is handled by YunohostSSOPlug via the
+# SSOwat identity headers (see conf/nginx.conf).
+ynh_script_progression "Provisioning the Plausible account for the YunoHost user..."
+admin_fullname=$(ynh_user_get_info --username="$admin" --key=fullname 2>/dev/null || echo "")
+provision_expr="Plausible.Release.YunohostSetup.provision_user(\"$admin_email\", \"$admin_fullname\")"
+ynh_exec_as_app bash -c "set -a; source '$install_dir/env'; set +a; cd '$data_dir'; \
+    '$install_dir/app/bin/plausible' rpc '$provision_expr'" \
+    || ynh_die "Failed to provision the Plausible account for $admin_email"
 
 #=================================================
 # SETUP SSOWAT / NGINX
