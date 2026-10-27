@@ -11,12 +11,8 @@ It shall NOT be edited by hand.
 Simple, privacy-friendly and lightweight web analytics (self-hosted Community Edition)
 
 [![🌐 Official app website](https://img.shields.io/badge/Official_app_website-darkgreen?style=for-the-badge)](https://plausible.io/)
-[![Version: 3.2.1~ynh3](https://img.shields.io/badge/Version-3.2.1~ynh3-rgb(18,138,11)?style=for-the-badge)](https://ci-apps.yunohost.org/ci/apps/plausible/)
+![Version: 3.2.1~ynh5](https://img.shields.io/badge/Version-3.2.1~ynh5-rgb(18,138,11)?style=for-the-badge)
 
-<div align="center">
-<a href="https://apps.yunohost.org/app/plausible"><img height="100px" src="https://github.com/YunoHost/yunohost-artwork/raw/refs/heads/main/badges/neopossum-badges/badge_more_info_on_the_appstore.svg"/></a>
-<a href="https://github.com/YunoHost-Apps/plausible_ynh/issues"><img height="100px" src="https://github.com/YunoHost/yunohost-artwork/raw/refs/heads/main/badges/neopossum-badges/badge_report_an_issue.svg"/></a>
-</div>
 
 
 ## Screenshots
@@ -26,19 +22,15 @@ Simple, privacy-friendly and lightweight web analytics (self-hosted Community Ed
 
 ## 📦 Developer info
 
-[![Automatic tests level](https://apps.yunohost.org/badge/cilevel/plausible)](https://ci-apps.yunohost.org/ci/apps/plausible/)
 
 🛠️ Upstream Plausible Analytics repository: <https://github.com/plausible/analytics>
 
-Pull request are welcome and should target the [`testing` branch](https://github.com/YunoHost-Apps/plausible_ynh/tree/testing).
 
 The `testing` branch can be tested using:
 ```
 # fresh install:
-sudo yunohost app install https://github.com/YunoHost-Apps/plausible_ynh/tree/testing
 
 # upgrade an existing install:
-sudo yunohost app upgrade plausible -u https://github.com/YunoHost-Apps/plausible_ynh/tree/testing
 ```
 
 You can also switch to the testing branch to update from testing by default (as same as for APT when you chose to use a testing repos) with this command:
