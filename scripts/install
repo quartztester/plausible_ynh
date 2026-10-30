@@ -11,13 +11,11 @@ source /usr/share/yunohost/helpers
 # INITIALIZE SETTINGS
 #=================================================
 
-# Plausible needs a root install (tracker script URL, live dashboard and
-# absolute redirects assume the host root).
+# Needs domain root: tracker URL, dashboard and redirects use absolute paths.
 if [ "${path:-/}" != "/" ]; then
     ynh_die "Plausible must be installed at the root of a domain (path=/): the app serves its tracker script and dashboard from absolute paths."
 fi
 
-# Resolve admin email: explicit answer wins, else the chosen YunoHost user's mail.
 if [ -z "${admin_email:-}" ] || [ "${admin_email:-}" = "null" ]; then
     admin_email=$(ynh_user_get_info --username="$admin" --key=mail)
 fi
@@ -54,9 +52,7 @@ chown "$app:www-data" "$install_dir"
 
 ynh_script_progression "Hardening ClickHouse before its first start..."
 
-# Random password for CH 'default' user, written into users.d BEFORE the
-# server ever starts. The postinst never starts the service, so the
-# shipped empty-password default never becomes reachable.
+# Write the CH 'default' password into users.d BEFORE first start: postinst never starts CH, so the empty-password default is never reachable.
 ch_password=$(ynh_string_random --length=48)
 ynh_app_setting_set --key=ch_password --value="$ch_password"
 
@@ -64,12 +60,10 @@ ynh_config_add --template="clickhouse-users.xml" --destination="/etc/clickhouse-
 chown clickhouse:clickhouse "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 chmod 600 "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 
-# Low-resources tuning shipped by Plausible's own CE compose stack for
-# <16GB RAM servers: fewer threads, smaller blocks, less logging.
+# Low-resources tuning from Plausible's own CE compose stack (<16GB RAM servers).
 ynh_config_add --template="clickhouse-low-resources.xml" --destination="/etc/clickhouse-server/config.d/${app}-low-resources.xml"
 chown clickhouse:clickhouse "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
 
-# Loopback-only listen + lean logs drop-in.
 ynh_config_add --template="clickhouse-server-conf.xml" --destination="/etc/clickhouse-server/config.d/${app}-server.xml"
 chown clickhouse:clickhouse "/etc/clickhouse-server/config.d/${app}-server.xml"
 
@@ -79,13 +73,10 @@ chown clickhouse:clickhouse "/etc/clickhouse-server/config.d/${app}-server.xml"
 
 ynh_script_progression "Starting ClickHouse..."
 
-# Type=notify: systemctl start itself blocks until CH is ready to accept
-# queries. restart (not start) so a CH instance already running from a
-# previous install cycle reloads the freshly written users.d password —
-# otherwise the server keeps authenticating with the old in-memory value.
+# Type=notify: start blocks until CH accepts queries.
+# NB: restart (not start) — a CH still running holds the OLD users.d password in memory.
 ynh_systemctl --service=clickhouse-server --action=restart
 
-# Wait for the HTTP interface (8123) to answer /ping.
 wait_for_url http://127.0.0.1:8123/ping 200 60 \
     || ynh_die "ClickHouse HTTP interface did not become ready on 127.0.0.1:8123"
 
@@ -120,14 +111,8 @@ ynh_config_add_systemd
 
 ynh_script_progression "Creating databases and running migrations (takes a few minutes)..."
 
-# createdb creates the PG and ClickHouse databases if missing;
-# interweave_migrate runs PG+CH migrations in dependency order.
 plausible_ctl "eval Plausible.Release.createdb"
 plausible_ctl "eval Plausible.Release.interweave_migrate"
-
-# NOTE: SSO account provisioning runs AFTER the service is up (below),
-# via `rpc` — `eval` boots a clean node where Plausible.Repo is not
-# started, so provision_user can never run from there.
 
 #=================================================
 # INTEGRATE SERVICE IN YUNOHOST
@@ -135,8 +120,7 @@ plausible_ctl "eval Plausible.Release.interweave_migrate"
 
 ynh_script_progression "Integrating service in YunoHost..."
 
-# ClickHouse is installed and configured by this package; track it in the
-# service dashboard too (no-op if already registered).
+# This package installs/configures ClickHouse — track it in the service dashboard too.
 if ! ynh_hide_warnings yunohost service status clickhouse-server >/dev/null 2>&1; then
     yunohost service add clickhouse-server --description="Column-oriented database for Plausible events"
 fi
@@ -151,9 +135,7 @@ ynh_script_progression "Starting Plausible..."
 
 ynh_systemctl --service="$app" --action=start
 
-# Wait for the app to serve the public tracker script (stable 200 route,
-# no auth, no first-launch redirect). Pre-first-launch /health/* redirects
-# to /register via FirstLaunchPlug, so it can't be used as a probe.
+# /js/script.js is a stable, unauthenticated 200 probe; /health/* redirects to /register pre-first-launch (FirstLaunchPlug).
 if ! wait_for_url "http://127.0.0.1:$port/js/script.js" 200 90; then
     journalctl --quiet --no-pager --lines=50 --unit="$app" >&2 || true
     ynh_die "Plausible did not start serving on http://127.0.0.1:$port"
@@ -163,15 +145,8 @@ fi
 # PRE-PROVISION THE SSO ADMIN ACCOUNT
 #=================================================
 
-# MUST run via `rpc` on the live node (the service is up now): `eval`
-# boots a clean node where Plausible.Repo is not started, so
-# provision_user always raised there and silently did nothing.
-
-# Create the first user from the YunoHost SSO identity (idempotent):
-# user + personal team (owner), team marked setup_complete so the first
-# SSO login lands straight on the dashboard. Plausible keys accounts by
-# email; the YunoHost login itself is handled by YunohostSSOPlug via the
-# SSOwat identity headers (see conf/nginx.conf).
+# MUST run via `rpc` on the live node: `eval` boots a clean node without Plausible.Repo — provision_user silently no-ops there.
+# Idempotent: creates user + owner team with setup_complete so the first SSO login lands on the dashboard; accounts are keyed by email, login via YunohostSSOPlug headers.
 ynh_script_progression "Provisioning the Plausible account for the YunoHost user..."
 admin_fullname=$(ynh_user_get_info --username="$admin" --key=fullname 2>/dev/null || echo "")
 provision_expr="Plausible.Release.YunohostSetup.provision_user(\"$admin_email\", \"$admin_fullname\")"

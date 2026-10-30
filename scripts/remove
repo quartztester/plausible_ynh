@@ -19,8 +19,6 @@ ynh_systemctl --service="$app" --action=stop
 # ENSURE DOWNWARD COMPATIBILITY
 #=================================================
 
-# (settings format is stable since first release)
-
 #=================================================
 # REMOVE APP SOURCE AND BUILT ARTIFACTS
 #=================================================
@@ -45,10 +43,8 @@ yunohost service remove "$app" || true
 ynh_config_remove_systemd
 ynh_config_remove_nginx
 
-# Leave ClickHouse packages + data in place: another app may use them, and
-# analytics data is precious. Admin can purge manually:
-#   apt purge clickhouse-server clickhouse-client clickhouse-common-static
-#   rm -rf /var/lib/clickhouse
+# Leave CH packages + data in place (other apps may use them). Purge manually:
+#   apt purge clickhouse-server clickhouse-client clickhouse-common-static && rm -rf /var/lib/clickhouse
 
 #=================================================
 # END OF SCRIPT

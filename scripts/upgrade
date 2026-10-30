@@ -21,19 +21,15 @@ ynh_systemctl --service="$app" --action=stop
 
 ynh_script_progression "Upgrading source files (native release)..."
 
-# env file holds the secrets; back it up, swap the release, re-render from
-# template with existing settings so secrets stay stable across upgrades.
+# env holds the secrets — back it up before the release swap; settings keep them stable across upgrades.
 ynh_backup_if_checksum_is_different --file="$install_dir/env"
 
 ynh_setup_source --dest_dir="$install_dir/app" --full_replace
 
 ynh_script_progression "Re-applying configuration..."
 
-# Re-render env with the SAME secrets as the running install (settings are
-# the source of truth: db_pwd/ch_password/secret_key_base/totp_vault_key).
-# If ch_password were regenerated here, users.d and the running ClickHouse
-# would keep authenticating with the old value while the app used the new
-# one — every event flush would fail with CH 516 auth errors.
+# Settings are the source of truth for secrets (db_pwd/ch_password/secret_key_base/totp_vault_key).
+# Regenerating ch_password here -> users.d/running CH keep the old value while the app uses the new one -> every event flush fails with CH 516 auth errors.
 secret_key_base=$(ynh_app_setting_get --app=$app --key=secret_key_base)
 totp_vault_key=$(ynh_app_setting_get --app=$app --key=totp_vault_key)
 ch_password=$(ynh_app_setting_get --app=$app --key=ch_password)
@@ -45,8 +41,7 @@ ynh_config_add --template=env --destination="$install_dir/env"
 chown "$app:$app" "$install_dir/env"
 chmod 600 "$install_dir/env"
 
-# Keep users.d in sync with the settings password (idempotent no-op when
-# unchanged) and restart CH so an already-running server reloads it.
+# Keep users.d synced with the settings password; restart CH so a running server reloads it.
 ynh_config_add --template="clickhouse-users.xml" --destination="/etc/clickhouse-server/users.d/${app}-default-password.xml"
 chown clickhouse:clickhouse "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 chmod 600 "/etc/clickhouse-server/users.d/${app}-default-password.xml"
@@ -80,27 +75,16 @@ ynh_config_add_nginx
 
 ynh_script_progression "Running database migrations..."
 
-# Source the env file in a subshell as the app user. Values are
 plausible_ctl "eval Plausible.Release.interweave_migrate"
 
-# Re-run the SSO account provisioning (idempotent): covers cases where
-# the admin_email setting changed, or an earlier version was installed
-# before this provisioning existed.
-#
-# NOTE: this MUST run via `rpc`, not `eval`: `eval` boots a clean node
-# where Plausible.Repo is not started, so provision_user raised
-# "(RuntimeError) could not lookup Ecto repo" there and the step was a
-# silent no-op since the first release. `rpc` executes on the live node.
+# Re-run SSO provisioning (idempotent): covers admin_email changes or installs predating this step.
+# MUST be `rpc`, not `eval`: on a clean `eval` node Plausible.Repo isn't started — "(RuntimeError) could not lookup Ecto repo", silent no-op.
 ynh_script_progression "Ensuring the SSO admin account exists..."
 admin_email=$(ynh_app_setting_get --app=$app --key=admin_email)
 admin=$(ynh_app_setting_get --app=$app --key=admin)
 
-# Self-heal: Plausible keys accounts by email and YunohostSSOPlug matches
-# the SSOwat-injected YNH_USER_EMAIL (the account's LDAP mail). If the
-# admin's YunoHost email was changed after install (yunohost user update),
-# the stored admin_email — and the Plausible account itself — go stale and
-# SSO auto-login silently drops to the password form (whose password is
-# randomly generated and unusable). Realign both.
+# Self-heal: if the admin's YunoHost email changed after install, the stored admin_email and the Plausible account go stale — SSO drops to an unusable random-password form.
+# Realign both (users table + app setting).
 if [ -n "$admin" ]; then
     current_email=$(yunohost user info "$admin" --output-as json 2>/dev/null \
         | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mail",""))' 2>/dev/null || echo "")

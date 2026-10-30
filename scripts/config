@@ -13,9 +13,7 @@ ynh_abort_if_errors
 # SHOW CURRENT VALUES (CONFIG PANEL "GET")
 #=================================================
 
-# Default behavior: read the bound values (env file for
-# DISABLE_REGISTRATION via bind, settings for admin_email). Nothing to
-# customize, so rely on the framework defaults.
+# GET: framework defaults handle it (values bound via env/settings); nothing to customize.
 
 #=================================================
 # APPLY CHANGES (CONFIG PANEL "SET")
@@ -24,9 +22,7 @@ ynh_abort_if_errors
 ynh_app_config_apply() {
     _ynh_app_config_apply
 
-    # The env file was rewritten by the framework (bind), but the file
-    # template also carries secrets not exposed in the panel; re-render
-    # from the package template so nothing is lost, then restart.
+    # The framework's bind rewrite drops template-only secrets — re-render from the package template.
     ynh_script_progression "Re-applying Plausible configuration..."
 
     secret_key_base=$(ynh_app_setting_get --app=$app --key=secret_key_base)

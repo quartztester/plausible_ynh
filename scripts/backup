@@ -14,16 +14,12 @@ source /usr/share/yunohost/helpers
 
 ynh_print_info "Declaring files to be backed up..."
 
-# App release + per-instance state. The release (48 MB) is included so
-# restore works even if the source host is unreachable (e.g. disaster
-# recovery on a fresh server).
+# The release (48 MB) is included so restore works even on a fresh, source-unreachable host.
 ynh_backup "$install_dir/app"
 ynh_backup "$install_dir/env"
 
-# Plausible state: session cache, tmp.
 ynh_backup "$data_dir"
 
-# System conf.
 ynh_backup "/etc/nginx/conf.d/$domain.d/$app.conf"
 ynh_backup "/etc/systemd/system/$app.service"
 ynh_backup "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
@@ -43,8 +39,7 @@ ynh_print_info "Dumping the ClickHouse events database..."
 
 ch_password=$(ynh_app_setting_get --app=$app --key=ch_password)
 
-# Dump only real tables: materialized views are recreated by migrations on
-# restore and INSERT INTO a view is invalid anyway.
+# Dump only real tables — views are recreated by migrations; INSERT INTO a view is invalid.
 clickhouse-client --password "$ch_password" --query "
     SELECT name FROM system.tables
     WHERE database = 'plausible_events_db'

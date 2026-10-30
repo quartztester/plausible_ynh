@@ -22,13 +22,11 @@ ynh_restore "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
 ynh_restore "/etc/clickhouse-server/config.d/${app}-server.xml"
 ynh_restore "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 
-# ynh_restore's default-permission pass marks /etc files root:root mode 400;
-# nginx workers run as www-data and can't read the vhost conf otherwise.
+# ynh_restore makes /etc files root:root 400 — nginx (www-data) couldn't read the vhost conf.
 chown root:www-data "/etc/nginx/conf.d/$domain.d/$app.conf"
 chmod 640 "/etc/nginx/conf.d/$domain.d/$app.conf"
 
-# ClickHouse runs as the 'clickhouse' user and must be able to read its
-# config drop-ins (its daemon dies with 'Access to file denied' otherwise).
+# The CH daemon dies with 'Access to file denied' unless it can read its drop-ins.
 chown clickhouse:clickhouse \
     "/etc/clickhouse-server/config.d/${app}-low-resources.xml" \
     "/etc/clickhouse-server/config.d/${app}-server.xml" \
@@ -38,19 +36,12 @@ chmod 640 \
     "/etc/clickhouse-server/config.d/${app}-server.xml"
 chmod 600 "/etc/clickhouse-server/users.d/${app}-default-password.xml"
 
-# ynh_restore's default-permission pass treats any directory that is not
-# exactly $install_dir or $data_dir as a system file (root:root, mode 400).
-# The release tree under $install_dir/app must belong to the app user and
-# stay traversable, with exec bits kept for the bundled ERTS binaries.
+# ynh_restore root:roots (mode 400) any dir other than $install_dir/$data_dir — keep $install_dir/app app-owned, traversable, ERTS exec bits intact.
 chown -R "$app:$app" "$install_dir"
 chmod 750 "$install_dir"
 chmod -R u=rwX,go-rwx "$install_dir/app"
 
-# Re-render env from the package template with CURRENT settings instead of
-# restoring the archived copy: the database/PG resources are re-provisioned
-# during restore, so db_pwd (and other generated secrets) may differ from
-# the archived ones. Secrets that must survive (SECRET_KEY_BASE,
-# TOTP_VAULT_KEY) are kept in app settings and re-injected via the template.
+# Re-render env instead of restoring the archive: re-provisioned resources may change db_pwd; lasting secrets (SECRET_KEY_BASE/TOTP_VAULT_KEY) come from app settings.
 secret_key_base=$(ynh_app_setting_get --app=$app --key=secret_key_base)
 totp_vault_key=$(ynh_app_setting_get --app=$app --key=totp_vault_key)
 if [ -z "$secret_key_base" ] || [ -z "$totp_vault_key" ]; then
@@ -78,25 +69,17 @@ ynh_script_progression "Restoring the ClickHouse events database..."
 
 ch_password=$(ynh_app_setting_get --app=$app --key=ch_password)
 
-# Reload ClickHouse BEFORE any plausible_ctl: the restored users.d XML
-# carries this instance's password; a CH instance that kept running
-# through remove/install cycles still has the previous password in memory.
+# Reload CH BEFORE any plausible_ctl: one still running holds the previous password in memory.
 ynh_systemctl --service=clickhouse-server --action=restart
 
-# createdb creates plausible_events_db if missing (no-op when present).
-# NB: cd out of YunoHost's app_tmp_work_dirs first — it is root-owned mode
-# 700 and the BEAM crashes at boot if started with a CWD the app user
-# cannot traverse.
 plausible_ctl "eval Plausible.Release.createdb"
 
-# Recreate table schemas via migrations, then re-import row data. Views
-# are recreated by migrations; only real tables were dumped.
+# Migrations recreate schemas + views; the loop below re-imports rows for the dumped real tables.
 plausible_ctl "eval Plausible.Release.interweave_migrate"
 
 for f in ./clickhouse/*.native; do
     [ -e "$f" ] || continue
-    # Skip empty dumps: ClickHouse rejects INSERT of zero rows
-    # (NO_DATA_TO_INSERT), and empty tables need no restore anyway.
+    # Skip empty dumps — CH rejects zero-row INSERTs (NO_DATA_TO_INSERT).
     [ -s "$f" ] || continue
     table=$(basename "$f" .native)
     clickhouse-client --password "$ch_password" \
@@ -120,13 +103,11 @@ chown -R "$app:$app" "$install_dir" "$data_dir"
 ynh_systemctl --service=clickhouse-server --action=restart
 ynh_systemctl --service="$app" --action=restart
 
-# Wait for the BEAM to finish booting (cache warmers take ~20s after
-# systemd reports the service active) before serving traffic.
+# BEAM cache warmers take ~20s past 'active' — wait before serving traffic.
 wait_for_url "http://127.0.0.1:$port/js/script.js" 200 90 \
     || ynh_die "Plausible did not come back after restore"
 
-# Reload nginx so the restored vhost conf is actually served (restoring the
-# conf file alone does not trigger a reload).
+# Restoring the conf file does not reload nginx — reload explicitly.
 ynh_systemctl --service=nginx --action=reload
 
 #=================================================
