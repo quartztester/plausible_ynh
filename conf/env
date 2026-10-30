@@ -1,4 +1,4 @@
-# Plausible per-instance environment (rendered by ynh_add_config).
+# Plausible per-instance environment (rendered by ynh_config_add).
 # chmod 600 __APP__ only — contains SECRET_KEY_BASE and DB/CH passwords.
 
 # ---- required ----

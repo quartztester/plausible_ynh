@@ -3,6 +3,7 @@
 test_format = 1.0
 
 [default]
+\n    args.admin = "alice"
 
     # Upgrade tests: last commit of each previous package version.
 
