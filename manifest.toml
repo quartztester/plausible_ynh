@@ -20,9 +20,7 @@ userdoc = "https://plausible.io/docs"
 [integration]
 yunohost = ">= 12.0"
 helpers_version = "2.1"
-# The app release bundles its own ERTS built on/for Debian 12 amd64.
-# Rebuild the release tarball for other arches/Debian releases before
-# listing them here.
+# Release bundles its own ERTS built for Debian 12 amd64; rebuild before listing other arches.
 architectures = ["amd64"]
 multi_instance = true
 ldap = "not_relevant"
@@ -65,8 +63,7 @@ ram.runtime = "2G"
 
 [resources]
     [resources.system_user]
-    # Elixir release runs as a normal service user; ClickHouse keeps its own
-    # 'clickhouse' user from the deb.
+    # Elixir release runs as a service user; ClickHouse keeps its own deb user.
 
     [resources.install_dir]
     owner = "__APP__:rwx"
@@ -78,24 +75,16 @@ ram.runtime = "2G"
     group = "__APP__:rwx"
 
     [resources.permissions]
-    # Public surface: tracker script, event ingestion, health probes and
-    # shared/public stats links. `main` covers these anonymously so
-    # browsers from measured websites are never sent to the portal.
+    # Public surface (tracker, events, shared stats): measured-site browsers must never hit the portal.
     main.url = "/"
     main.auth_header = false
 
-    # Everything else on the domain is the private dashboard/API. Protected
-    # by the YunoHost SSO; on authenticated requests SSOwat injects
-    # YNH_USER / YNH_USER_EMAIL / YNH_USER_FULLNAME headers (JWT-verified
-    # from the portal cookie, client-forged copies stripped) which the
-    # app's YunohostSSOPlug uses to auto-login the matching Plausible
-    # account (matched by email). Anonymous visitors get redirected to
-    # the portal instead of Plausible's own /login.
+    # Everything else is the private dashboard/API behind the YunoHost SSO.
+    # SSOwat's JWT-verified YNH_USER* headers let YunohostSSOPlug auto-login the matching account by email.
     dashboard.url = "re:^__DOMAIN__\\/(?!js\\/|css\\/|images\\/|favicon\\.ico|robots\\.txt|live\\/|api\\/|share\\/|avatar\\/).*$"
     dashboard.protected = true
     dashboard.allowed = ["all_users"]
-    # Regex URLs cannot render a portal tile (YNH warns); the app tile
-    # comes from `main`, which is public and must stay untiled anyway.
+    # Regex URLs cannot render a portal tile; the tile comes from `main`.
     dashboard.show_tile = false
 
     [resources.ports]
@@ -103,16 +92,10 @@ ram.runtime = "2G"
     main.default = 8000
 
     [resources.apt]
-    # PostgreSQL from Debian; ClickHouse 24.12 from the official upstream
-    # repo (added pinned by the extras mechanism, and the version pin in
-    # scripts/install keeps it exactly 24.12.6.70 like Plausible CE's own
-    # compose stack). The repo is removed after install so routine apt
-    # upgrades never move ClickHouse unexpectedly.
+    # ClickHouse 24.12 from the upstream repo, pinned like CE's compose stack; removed after install so apt never moves it.
     packages = ["postgresql", "postgresql-contrib", "brotli"]
     extras.clickhouse.repo = "deb https://packages.clickhouse.com/deb stable main"
-    # ClickHouse's old archive.key URL is dead (404). The full current
-    # signing key (8919F6BD2B48D754 incl. subkeys) is mirrored in this
-    # package's GitHub release assets.
+    # Upstream archive.key URL is dead (404); current signing key mirrored in this package's release assets.
     extras.clickhouse.key = "https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/clickhouse-key-v2.asc"
     extras.clickhouse.packages = ["clickhouse-server=24.12.6.70", "clickhouse-client=24.12.6.70", "clickhouse-common-static=24.12.6.70"]
 
@@ -120,12 +103,8 @@ ram.runtime = "2G"
     type = "postgresql"
 
     [resources.sources.main]
-    # Native Elixir/OTP release of plausible/analytics CE v3.2.1 built from
-    # the v3.2.1 tag (MIX_ENV=ce) on Debian 12 bookworm amd64 with
-    # Erlang/OTP 27.3.4.6 + Elixir 1.19.4 + Node 22. Bundles its own ERTS,
-    # so no Erlang packages are needed at runtime.
-    # NOTE for maintainers: rebuild for each upstream tag (see doc/ADMIN.md);
-    # update url + sha256 + version together.
+    # Native Elixir/OTP release of CE v3.2.1 (MIX_ENV=ce, Debian 12 amd64, OTP 27 + Elixir 1.19 + Node 22); bundles its own ERTS.
+    # Maintainers: rebuild per upstream tag (doc/ADMIN.md); update url + sha256 + version together.
     in_subdir = true
     amd64.url = "https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/plausible-3.2.1-x86_64-linux-gnu-bookworm.tar.gz"
     amd64.sha256 = "86e4eae831f3465383e048203a7ecb8633400b486d6fe8dcbb68481daa67bd46"
