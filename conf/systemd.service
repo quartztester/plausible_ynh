@@ -21,22 +21,22 @@ SyslogIdentifier=__APP__
 
 ; Security hardening. NB: no ProtectHome — the YunoHost data_dir lives
 ; under /home/yunohost.app and the app writes sessions/tmp/geodb there.
-NoNewPrivileges=yes
-PrivateTmp=yes
-PrivateDevices=yes
-ProtectSystem=full
-ProtectHome=no
-ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectControlGroups=yes
-CapabilityBoundingSet=
+ NoNewPrivileges=yes
+ PrivateTmp=yes
+ PrivateDevices=yes
+ ProtectSystem=full
+ ProtectHome=no
+ ProtectKernelTunables=yes
+ ProtectKernelModules=yes
+ ProtectControlGroups=yes
+ CapabilityBoundingSet=
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=yes
 LockPersonality=yes
 # BEAM needs executable JIT memory for the new JIT on OTP27.
 MemoryDenyWriteExecute=no
-SystemCallFilter=@system-service
-SystemCallErrorNumber=EPERM
+ SystemCallFilter=@system-service
+ SystemCallErrorNumber=EPERM
 # Plausible's ingest and query paths are chatty; give the port/file budget.
 LimitNOFILE=65535
 
