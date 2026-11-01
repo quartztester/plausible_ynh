@@ -95,8 +95,9 @@ ram.runtime = "2G"
     # ClickHouse 24.12 from the upstream repo, pinned like CE's compose stack; removed after install so apt never moves it.
     packages = ["postgresql", "postgresql-contrib", "brotli"]
     extras.clickhouse.repo = "deb https://packages.clickhouse.com/deb stable main"
-    # Upstream archive.key URL is dead (404); current signing key mirrored in this package's release assets.
-    extras.clickhouse.key = "https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/clickhouse-key-v2.asc"
+    # Upstream archive.key URL is dead (404); key mirrored here. MUST be
+    # ASCII-armored — apt silently ignores binary keys in trusted.gpg.d.
+    extras.clickhouse.key = "https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/clickhouse-key-v3.asc"
     extras.clickhouse.packages = ["clickhouse-server=24.12.6.70", "clickhouse-client=24.12.6.70", "clickhouse-common-static=24.12.6.70"]
 
     [resources.database]
