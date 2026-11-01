@@ -117,6 +117,9 @@ if ! ynh_hide_warnings yunohost service status clickhouse-server >/dev/null 2>&1
 fi
 
 chown -R "$app:$app" "$install_dir" "$data_dir"
+# Enable or the CI post-step `systemctl isolate multi-user.target` kills the
+# restored-but-disabled units before validation curls them.
+systemctl enable clickhouse-server "$app" --quiet
 ynh_systemctl --service=clickhouse-server --action=restart
 ynh_systemctl --service="$app" --action=restart
 
