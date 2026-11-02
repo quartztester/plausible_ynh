@@ -43,9 +43,17 @@ _plausible_install_clickhouse() {
     echo "deb https://packages.clickhouse.com/deb stable main" \
         > /etc/apt/sources.list.d/plausible_ch.list
     apt-get update -qq
-    apt-get install -y --no-install-recommends --allow-downgrades \
+    # The postinst's "clickhouse install" housekeeping step has been seen to
+    # stall indefinitely in CI containers; a timeout plus a configure-resume
+    # retry turns that flake into a slow success instead of a hung install.
+    if ! timeout 600 apt-get install -y --no-install-recommends --allow-downgrades \
         clickhouse-server="$CH_VERSION" clickhouse-client="$CH_VERSION" \
-        clickhouse-common-static="$CH_VERSION"
+        clickhouse-common-static="$CH_VERSION"; then
+        dpkg --configure -a
+        timeout 600 apt-get install -y --no-install-recommends --allow-downgrades \
+            clickhouse-server="$CH_VERSION" clickhouse-client="$CH_VERSION" \
+            clickhouse-common-static="$CH_VERSION"
+    fi
     # Pinned to upstream's compose-stack version: hold so Debian's apt
     # never moves it behind our back; repo+key dropped right after.
     apt-mark hold clickhouse-server clickhouse-client clickhouse-common-static
