@@ -43,6 +43,9 @@ _plausible_install_clickhouse() {
     echo "deb https://packages.clickhouse.com/deb stable main" \
         > /etc/apt/sources.list.d/plausible_ch.list
     apt-get update -qq
+    # Without this the postinst prompts for the default-user password on
+    # stdin (no TTY in script context) and hangs the whole install
+    export DEBIAN_FRONTEND=noninteractive
     # The postinst's "clickhouse install" housekeeping step has been seen to
     # stall indefinitely in CI containers; a timeout plus a configure-resume
     # retry turns that flake into a slow success instead of a hung install.
