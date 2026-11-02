@@ -51,6 +51,8 @@ chown "$app:www-data" "$install_dir"
 # SET UP CLICKHOUSE (SECURE BEFORE FIRST START)
 #=================================================
 
+_plausible_install_clickhouse
+
 ynh_script_progression "Hardening ClickHouse before its first start..."
 
 # Random CH password written into users.d before the server ever starts (postinst never starts it; shipped empty default never reachable).

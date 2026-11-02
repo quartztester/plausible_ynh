@@ -18,6 +18,8 @@ ynh_restore "$install_dir/app"
 ynh_restore "$data_dir"
 ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
 ynh_restore "/etc/systemd/system/$app.service"
+_plausible_install_clickhouse
+
 ynh_restore "/etc/clickhouse-server/config.d/${app}-low-resources.xml"
 ynh_restore "/etc/clickhouse-server/config.d/${app}-server.xml"
 ynh_restore "/etc/clickhouse-server/users.d/${app}-default-password.xml"
