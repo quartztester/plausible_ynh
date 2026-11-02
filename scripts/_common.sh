@@ -30,9 +30,10 @@ CH_VERSION="24.12.6.70"
 CH_KEY_URL="https://github.com/quartztester/plausible_ynh/releases/download/v3.2.1-ynh1/clickhouse-key-v3.asc"
 
 _plausible_install_clickhouse() {
-    local have=""
-    have="$(dpkg-query --showformat='${Version}' --show clickhouse-server 2>/dev/null || true)"
-    if [ "$have" = "$CH_VERSION" ]; then
+    # "ii" = properly installed; a config-files leftover still reports a
+    # version and would wrongly skip the install.
+    if [ "$(dpkg-query --show -f'${db:Status-Abbrev}' clickhouse-server 2>/dev/null)" = "ii" ] \
+        && [ "$(dpkg-query --showformat='${Version}' --show clickhouse-server 2>/dev/null)" = "$CH_VERSION" ]; then
         return 0
     fi
     ynh_script_progression "Installing ClickHouse $CH_VERSION from upstream repo..."
