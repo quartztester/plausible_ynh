@@ -3,7 +3,9 @@
 test_format = 1.0
 
 [default]
-    # Root-only app (install guard): the subpath scenario can never pass
-    exclude = ["install.subdir"]
+    # Root-only app (install guard): the subpath scenario can never pass.
+    # Multi-instance: upstream hardcodes the ClickHouse db name and the
+    # `default` CH user (createdb), so a second instance collides.
+    exclude = ["install.subdir", "install.multi"]
 
     # Upgrade tests: last commit of each previous package version.
