@@ -3,6 +3,8 @@
 test_format = 1.0
 
 [default]
+    # Root-only app (install guard): the subpath scenario can never pass
+    exclude = ["install.subdir"]
 
     # Upgrade tests: last commit of each previous package version.
 
