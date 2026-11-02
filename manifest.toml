@@ -79,13 +79,6 @@ ram.runtime = "2G"
     main.url = "/"
     main.auth_header = false
 
-    # Everything else is the private dashboard/API behind the YunoHost SSO.
-    # SSOwat's JWT-verified YNH_USER* headers let YunohostSSOPlug auto-login the matching account by email.
-    dashboard.url = "re:^__DOMAIN__\\/(?!js\\/|css\\/|images\\/|favicon\\.ico|robots\\.txt|live\\/|api\\/|share\\/|avatar\\/).*$"
-    dashboard.protected = true
-    dashboard.allowed = ["all_users"]
-    # Regex URLs cannot render a portal tile; the tile comes from `main`.
-    dashboard.show_tile = false
 
     [resources.ports]
     # Plausible HTTP (nginx -> app); both bound to loopback only.
